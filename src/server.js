@@ -19,9 +19,23 @@ app.set('trust proxy', 1);
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
-  max: 100, 
+  max: 10000, 
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Internal API calls using valid internal key bypass rate limits completely
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      if (token && config.internalApiKey && token === config.internalApiKey) {
+        return true;
+      }
+    }
+    if (req.headers['x-api-key'] && config.internalApiKey && req.headers['x-api-key'] === config.internalApiKey) {
+      return true;
+    }
+    return false;
+  },
   message: {
     error: {
       code: 'RATE_LIMIT_EXCEEDED',
